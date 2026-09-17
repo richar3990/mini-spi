@@ -1,0 +1,435 @@
+{
+  "info": {
+    "_postman_id": "8f5f6f7e-8f9e-4d13-9e4e-1c3d9f3e8a21",
+    "name": "Mini SPI API",
+    "description": "Colección de pruebas para el simulador de transferencias inmediatas Mini SPI.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "sourceAccount",
+      "value": "10000001"
+    },
+    {
+      "key": "destinationAccount",
+      "value": "10000002"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "550e8400-e29b-41d4-a716-446655440000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Verifica que el backend se encuentre disponible."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Backend status is UP\", function () {",
+                  "    pm.expect(pm.response.json().status).to.eql(\"UP\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Transferencias",
+      "item": [
+        {
+          "name": "Crear transferencia - Exitosa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"sourceAccount\": \"{{sourceAccount}}\",\n    \"destinationAccount\": \"{{destinationAccount}}\",\n    \"amount\": 1000.00,\n    \"description\": \"Pago de prueba Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transferencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transferencias"
+              ]
+            },
+            "description": "Crea una transferencia utilizando una clave de idempotencia generada automáticamente por Postman."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Transfer ID exists\", function () {",
+                  "    pm.expect(response.id).to.exist;",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains transfer status\", function () {",
+                  "    pm.expect([\"EXITOSA\", \"RECHAZADA\", \"PENDIENTE\"]).to.include(response.status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear transferencia - Idempotencia",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"sourceAccount\": \"{{sourceAccount}}\",\n    \"destinationAccount\": \"{{destinationAccount}}\",\n    \"amount\": 500.00,\n    \"description\": \"Prueba de idempotencia\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transferencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transferencias"
+              ]
+            },
+            "description": "La misma solicitud puede ejecutarse varias veces con la misma X-Idempotency-Key sin crear una transferencia duplicada."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Transfer ID exists\", function () {",
+                  "    pm.expect(response.id).to.exist;",
+                  "});",
+                  "",
+                  "pm.test(\"Idempotency key is preserved\", function () {",
+                  "    pm.expect(response.idempotencyKey).to.eql(pm.variables.get(\"idempotencyKey\"));",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"idempotencyTransferId\", response.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear transferencia - Fondos insuficientes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"sourceAccount\": \"{{sourceAccount}}\",\n    \"destinationAccount\": \"{{destinationAccount}}\",\n    \"amount\": 999999999.00,\n    \"description\": \"Prueba fondos insuficientes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transferencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transferencias"
+              ]
+            },
+            "description": "Valida que una transferencia que supera el saldo disponible sea rechazada."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error response contains message\", function () {",
+                  "    pm.expect(pm.response.json().message).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear transferencia - Cuenta inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"sourceAccount\": \"99999999\",\n    \"destinationAccount\": \"{{destinationAccount}}\",\n    \"amount\": 1000.00,\n    \"description\": \"Prueba cuenta inexistente\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transferencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transferencias"
+              ]
+            },
+            "description": "Valida que la cuenta origen debe existir."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear transferencia - Cuenta origen y destino iguales",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"sourceAccount\": \"{{sourceAccount}}\",\n    \"destinationAccount\": \"{{sourceAccount}}\",\n    \"amount\": 1000.00,\n    \"description\": \"Prueba cuentas iguales\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transferencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transferencias"
+              ]
+            },
+            "description": "Valida que las cuentas origen y destino sean diferentes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear transferencia - Monto inválido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"sourceAccount\": \"{{sourceAccount}}\",\n    \"destinationAccount\": \"{{destinationAccount}}\",\n    \"amount\": 0,\n    \"description\": \"Prueba monto inválido\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transferencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transferencias"
+              ]
+            },
+            "description": "Valida que el monto debe ser mayor a cero."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar transferencias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transferencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transferencias"
+              ]
+            },
+            "description": "Obtiene las últimas transferencias registradas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    pm.expect(pm.response.json()).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

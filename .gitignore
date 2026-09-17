@@ -1,0 +1,38 @@
+# IDEs y Editores de código
+.idea/
+.vscode/
+*.swp
+*.swo
+*.tmp
+*.bak
+
+# Sistema Operativo
+.DS_Store
+Thumbs.db
+
+# Variables de entorno y llaves secretas
+.env
+.env.local
+.env.*.local
+
+# Archivos de registros (Logs)
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencias (si usas Node.js, Python, etc.)
+node_modules/
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Carpeta de compilación / salida
+dist/
+build/
+out/
+backend/.gitattributes
+backend/.mvn/wrapper/maven-wrapper.properties
+backend/mvnw
+backend/mvnw.cmd
